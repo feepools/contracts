@@ -21,6 +21,7 @@ contract FeePool {
     uint256 public lastUpdateTime;
     uint256 public rewardPerTokenStored;
     uint256 public totalStakes;
+    uint256 public totalRewardsAdded;
     mapping(address => uint256) public userStakes;
     mapping(address => uint256) private _userRewardPerTokenPaid;
     mapping(address => uint256) private _userPaidRewards;
@@ -165,6 +166,7 @@ contract FeePool {
     function _addReward(uint256 reward) internal updateReward(address(0)) {
         require(reward > 0, "Invalid reward");
         reservedBalance += reward;
+        totalRewardsAdded += reward;
         reward *= rewardScalar;
         if (block.timestamp >= periodFinish) {
             rewardRate = reward / rewardDuration;
@@ -217,5 +219,9 @@ contract FeePool {
 
     function getRewardForDuration() external view returns (uint256) {
         return rewardRate * rewardDuration / rewardScalar;
+    }
+
+    function getTotalRewardsAdded() external view returns (uint256) {
+        return totalRewardsAdded;
     }
 }

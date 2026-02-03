@@ -12,9 +12,7 @@ The system operates with two layers:
 
 ### Deployments
 
-Staker: `0xcf7400244d0fbD33752d4B51A0415038CAA6bE1D`
-
-SwapConfig: `0x7C4299647e3FBD9f7f40A2b39372fedd7ceD3f4D`
+Staker: `0x9d851487C5d3B22E60dCed1021edA88171047862`
 
 ## Critical Functions for Projects
 
@@ -117,6 +115,87 @@ To set up staking rewards for your project:
    - Stakers call `stake` on the Staker contract
    - If your pool is listed, stakers automatically join it
    - If not listed, stakers can specify your pool in the `customPools` parameter
+
+## Integration Guide
+
+### Staker Contract vs FeePool Contract
+
+Understanding the architecture is crucial for integrators:
+
+**Staker Contract** ([`Staker.sol`](src/Staker.sol)):
+- Main entry point for all staking operations
+- Manages user accounts, token stakes, and pool memberships
+- Handles StakeCredit token minting/burning
+- Coordinates interactions with multiple FeePool contracts
+- Functions: `stake`, `unstake`, `joinPools`, `leavePools`, `claimRewards`, etc.
+
+**FeePool Contract** ([`FeePool.sol`](src/FeePool.sol)):
+- Individual reward pool for a specific stake token, reward token, and duration
+- Manages reward distribution and accrual
+- Tracks user stakes and rewards within that specific pool
+- Only callable by the Staker contract (enforced via `onlyStaker` modifier)
+- Functions: `stake`, `unstake`, `claimReward`, reward query functions, etc.
+
+**Important**:
+- **User operations** (stake, unstake, claim rewards) should go through the **Staker contract**
+- **Adding rewards** (addEthReward, addTokenReward, addTokenRewardWithTransfer) should be called directly on the **FeePool contract** by projects/integrators
+- **Read-only/view functions** on FeePool contracts can and should be called directly by integrators to query reward information for displaying user rewards in their applications
+
+### Unstaking and Reward Claims
+
+**Automatic Reward Claiming on Unstake**: When a user unstakes all of their tokens (full unstake), the system automatically claims and pays out all unclaimed rewards from all pools the user was participating in. This happens via the `leavePools` function which calls `claimPoolRewards` after unstaking.
+
+**Partial Unstake**: When unstaking a partial amount, rewards are not automatically claimed, but the user's reward accrual is updated. Users can claim rewards separately using `claimRewards` or `claimPoolRewards`.
+
+### Reward Query Functions (FeePool Contract)
+
+These functions are available on individual FeePool contracts to query reward information:
+
+#### getUnpaidRewards
+
+**Function**: `getUnpaidRewards(address user)`
+
+**Returns**: `uint256` - The amount of unclaimed rewards for a user
+
+**Purpose**: Get the current unclaimed reward balance for a user in this pool.
+
+#### getRewardPerToken
+
+**Function**: `getRewardPerToken()`
+
+**Returns**: `uint256` - The current reward per token (scaled by 1e18)
+
+**Purpose**: Get the current reward rate per staked token. This value accumulates over time as rewards are distributed.
+
+#### getPaidRewards
+
+**Function**: `getPaidRewards(address user)`
+
+**Returns**: `uint256` - The total amount of rewards already claimed by the user
+
+**Purpose**: Get the historical total of rewards that have been claimed by a user in this pool.
+
+#### getRewardForDuration
+
+**Function**: `getRewardForDuration()`
+
+**Returns**: `uint256` - The total reward amount for the current reward period
+
+**Purpose**: Get the total reward amount that will be distributed over the current reward duration period.
+
+#### getTotalRewardsAdded
+
+**Function**: `getTotalRewardsAdded()`
+
+**Returns**: `uint256` - The total amount of rewards added to the pool over its lifetime
+
+**Purpose**: Get the cumulative total of all rewards that have been added to this pool since its creation. This is useful for tracking the pool's reward history.
+
+### Accessing FeePool Contracts
+
+To interact with FeePool functions, you need the pool address. You can get it using:
+- `getPoolAddress(stakeToken, rewardToken, rewardDurationDays)` - Reverts if pool doesn't exist
+- `getPoolAddressUnchecked(stakeToken, rewardToken, rewardDurationDays)` - Returns address(0) if pool doesn't exist
 
 ## Helper Functions
 

@@ -168,9 +168,8 @@ contract Staker is Ownable, ReentrancyGuard {
                 FeePool(pool).stake(user, quantity);
                 _pools[pool].stakes += quantity;
             }
-        } else {
-            _tokenStakers[token].add(user);
         }
+        _tokenStakers[token].add(user);
 
         if (customize) {
             // Join the custom pools
